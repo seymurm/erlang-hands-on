@@ -26,15 +26,47 @@ loop(WorkerPids, JobList)->
 		receive
 			stop -> io:format("Server is Done for good! ~n"),
       kill_processes(Pids);
-
-      {free, Pid} -> io:format("Server got free ~p", [Pid]);
-
-      {login,UPid,UName} -> NState= handleLogin(State,UPid,UName),
-								 loop(NState);
-
-      {msg,UPid,Msg} -> NState= handleMsg(State,UPid,Msg),
-								loop(NState)
+      %worker got free
+      {free,Pid}-> print("server got free",Pid),
+      %send worker the job
+      Pid ! (JobId,FirstJobFromList,CompressedList,F),
+      %receive job from client
+      {thereIsaJob,client,JobId}-> print("server got value",JobId) , client ! {ACK}
+      JobList.add(Pid),
 		end.
+
+worker () ->
+  global:send(free)
+  receive
+      {jobId,CompressedList,F} ->
+  	io:format("I am ~p and am working on ~p ~n",[self(),CompressedList]),
+  	%should decompress the list
+  	L= decompress(CompressedList),
+  	%uses pfilt
+  	Result =pfilt(L),
+  	%compress
+  	CompressedResult=compress(Result),
+  	%send back the result
+  	Pid ! {result,CompressedResult},
+
+  	%stops
+  	{Pid,stop}-> exit(endjob);
+  	%restart itself
+      worker();
+      %%{}-> worker();
+
+  end.
+
+filter(F,L) ->
+process_flag(trap_exit,true);
+
+CompressedList=compress(L),
+%sending
+global:send (job,CompressedList,F),
+receive
+	{MessageId,final_result,CompressedResult} ->  decompress(CompressedResult)
+	%%•	Otherwise, wait 10 seconds and terminate returning  ‘Server Busy’
+end.
 
 
 pfilt(P, L) ->
