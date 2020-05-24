@@ -55,7 +55,23 @@ gather([H|T]) ->
         {H, []} -> gather(T)
     end.
 
+decompress([])->[];
+decompress([H|T])->constr(H)++decompress.
 
+compress([])->[];
+compress([H])-> [{count(H,[H]),H}];
+compress([H|T])->[{count(H,T)+1,H}|compress(delete_occ(H,T))].
+
+constr({0,_Element})-> [];
+constr({Times,Element}) -> [Element|constr({Times-1,Element})].
+
+count(_E,[])->0;
+count(E,[E|T])-> 1+ count(E,T);
+count(E,[_H|T])->  count(E,T).
+
+delete_occ(_E,[])->[];
+delete_occ(E,[E|T]) -> delete_occ(E,T);
+delete_occ(E,[H|T])-> [H|delete_occ(E,T)].
 
 kill_processes([]) -> ok;
 kill_processes([HP|TP]) -> exit(HP,killed), kill_processes(TP).
